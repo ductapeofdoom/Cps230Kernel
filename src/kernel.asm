@@ -10,8 +10,8 @@ org 0x0
 section .text
 start:
     ;Make code and data segments the same to simplify addressing
-    mov ax, cs
-    mov ds, ax
+    mov     ax, cs
+    mov     ds, ax
     ;do stuff
     jmp     bootstrap
 done:
@@ -31,18 +31,18 @@ prompt      db  "What is your name? ", 13, 10,  0
 
 section .text
 task1:
-    ; mov	    ah, 0x09            ; DOS API Function number (write string)
-	mov	    dx, msg1            ; Parameter (pointer to "$"-terminated ASCII string)
-	; int	    0x21                ; Call DOS (via a "software interrupt")
+    ; mov     ah, 0x09            ; DOS API Function number (write string)
+    mov     dx, msg1            ; Parameter (pointer to "$"-terminated ASCII string)
+    ; int     0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
-    call puts
+    call    puts
     call    yield
     jmp     task1
 
 task2:
     ; mov	    ah, 0x09            ; DOS API Function number (write string)
-	mov	    dx, msg2            ; Parameter (pointer to "$"-terminated ASCII string)
-	; int	    0x21                ; Call DOS (via a "software interrupt")
+    mov	    dx, msg2            ; Parameter (pointer to "$"-terminated ASCII string)
+    ; int	    0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
     call puts
     
@@ -79,7 +79,7 @@ bootstrap:
 
 setupRand:
     ; BIOS call to get current system time
-    mov	    ah, 0x01
+    mov     ah, 0x01
     int     0x1A
     mov     [seed], dx ; return value
     ret
@@ -92,7 +92,7 @@ getRand:
     ; trashes ax and dx at least
     
     ; BIOS call to get system time
-    mov	    ah, 0x01
+    mov     ah, 0x01
     int     0x1A
     ; puts result in dx
     
@@ -100,8 +100,8 @@ getRand:
     imul    ax, dx ; result from the call to get time
     ; imul puts result in ax:dx
     
-    mov ax, dx
-    add ax, 1337 ; response goes in ax
+    mov     ax, dx
+    add     ax, 1337 ; response goes in ax
     ret
 
 puts:
@@ -109,34 +109,35 @@ puts:
     push    cx
     push    si
     
-    mov ah, 0x0e
-    mov cx, 1       ; no repetition of chars
+    mov     ah, 0x0e
+    mov     cx, 1       ; no repetition of chars
     
-    mov si, dx
-.loop:  mov al, [si]
-    inc si
-    cmp al, 0
-    jz  .end
-    int 0x10
-    jmp .loop
+    mov     si, dx
+.loop:
+    mov     al, [si]
+    inc     si
+    cmp     al, 0
+    jz      .end
+    int     0x10
+    jmp     .loop
 .end:
-    pop si
-    pop cx
-    pop ax
+    pop     si
+    pop     cx
+    pop     ax
     ret
 
 
 section .data
 ; seed for random number generation
-seed       dw 0
+seed        dw 0
 
-saved_sp   dw 0
+saved_sp    dw 0
 
 ;number of times to run before exiting
 timesToRun dw 10
 
-msg1       db "I am task A!", 13, 10, 0
-msg2       db "I am task B!", 13, 10, 0
+msg1        db "I am task A!", 13, 10, 0
+msg2        db "I am task B!", 13, 10, 0
 
-stack1     times 256 db 0
-stack2     times 256 db 0
+stack1      times 256 db 0
+stack2      times 256 db 0
