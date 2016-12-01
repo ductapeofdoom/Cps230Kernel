@@ -1,5 +1,3 @@
 @echo off
 
-call make.bat
-
-call tools\dbd.exe .\build
+boot build\boot.img
