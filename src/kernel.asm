@@ -7,11 +7,22 @@ bits 16
 ;For boostrapped programs, all addresses start at 0
 org 0x0
 
+; Where to find the INT 8 handler vector within the IVT [interrupt vector table]
+IVT8_OFFSET_SLOT    equ 4 * 8           ; Each IVT entry is 4 bytes; this is the 8th
+IVT8_SEGMENT_SLOT   equ IVT8_OFFSET_SLOT + 2    ; Segment after Offset
+
 section .text
 start:
+
     ;Make code and data segments the same to simplify addressing
     mov     ax, cs
     mov     ds, ax
+
+    ; Set ES=0x0000 (segment of IVT)
+    mov ax, 0x0000
+    mov es, ax
+    
+
     ;do stuff
     jmp     bootstrap
 done:
@@ -21,23 +32,21 @@ done:
     ; int     0x21      ; Call DOS
     ;Loop infinitley
     jmp $
-section .data
-prompt      db  "What is your name? ", 13, 10,  0
 
 ;some ideas for later
 ;stacks      times 32 dw  0 ; 32 stacks
 ;currProg    dw  0 ; id of currently executing task
 ;numProg     dw  2 ; number of tasks we want to run
 
-section .text
 task1:
     ; mov     ah, 0x09            ; DOS API Function number (write string)
     mov     dx, msg1            ; Parameter (pointer to "$"-terminated ASCII string)
     ; int     0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
     call    puts
-    call    yield
-    jmp     task1
+    jmp task1
+    ; call    yield
+    ; jmp     task1
 
 task2:
     ; mov	    ah, 0x09            ; DOS API Function number (write string)
@@ -45,37 +54,68 @@ task2:
     ; int	    0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
     call puts
-    
+    jmp task2
     ;stop after 10 times
-    dec     WORD [timesToRun] 
-    cmp     WORD [timesToRun], 0
-    je      done
+    ; dec     WORD [timesToRun] 
+    ; cmp     WORD [timesToRun], 0
+    ; je      done
     
-    call    yield
-    jmp     task2
+    ; call    yield
+    ; jmp     task2
 
 yield:
-    pushf
+    ;Flags, CS, and IP should all have been pushed by the interrupt
+    ;Push GPRs 
     pusha
+    ;Push DS and ES
+    push ds
+    push es
     
-    xchg    [saved_sp], sp
-begin:    
+    ;Switch stacks
+    xchg    [saved_sp], sp  
+    pop es
+    pop ds
     popa
-    popf
-    ret
+    ;Chain to next interrupt handler
+    jmp far [cs:ivt8_offset]    ; Use CS as the segment here, since who knows what DS is now
+
+start_first_task:
+    pop es
+    pop ds
+    popa
+    iret
 
 bootstrap:
     mov     sp, stack2 + 255 ; top of stack2
-    push    task2            ; location to return to
     pushf
+    push cs
+    push    task2            ; location to return to
     pusha
+    push ds
+    push es
     mov     [saved_sp], sp
     
     mov     sp, stack1 + 255 ; top of stack1
-    push    task1            ; location to return to
     pushf
+    push cs
+    push    task1            ; location to return to
     pusha
-    jmp     begin
+    push ds
+    push es
+
+    ; TODO Install interrupt hook
+    ; 0. disable interrupts (so we can't be...INTERRUPTED...)
+    cli
+    ; 1. save current INT 8 handler address (segment:offset) into ivt8_offset and ivt8_segment
+    mov ax, [es:IVT8_SEGMENT_SLOT]
+    mov [ivt8_segment], ax
+    mov ax, [es:IVT8_OFFSET_SLOT]
+    mov [ivt8_offset], ax
+    ; 2. set new INT 8 handler address (OUR code's segment:offset)
+    mov [es:IVT8_SEGMENT_SLOT], cs
+    mov word[es:IVT8_OFFSET_SLOT], yield
+
+    jmp start_first_task
 
 setupRand:
     ; BIOS call to get current system time
@@ -135,6 +175,12 @@ saved_sp    dw 0
 
 ;number of times to run before exiting
 timesToRun dw 10
+
+
+ivt8_offset dw  0
+ivt8_segment    dw  0
+
+int_msg     db "Int", 13, 10, 0
 
 msg1        db "I am task A!", 13, 10, 0
 msg2        db "I am task B!", 13, 10, 0
