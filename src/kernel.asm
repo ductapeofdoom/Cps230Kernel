@@ -50,7 +50,7 @@ task1:
     mov     dx, msg1            ; Parameter (pointer to "$"-terminated ASCII string)
     ; int     0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
-    call    puts
+    ; call    puts
     jmp     task1
     ; call    yield
     ; jmp     task1
@@ -60,7 +60,7 @@ task2:
     mov	    dx, msg2            ; Parameter (pointer to "$"-terminated ASCII string)
     ; int	    0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
-    call    puts
+    ; call    puts
     jmp     task2
     ;stop after 10 times
     ; dec     WORD [timesToRun] 
@@ -145,7 +145,7 @@ bootstrap:
     mov     sp, stack3 + 255 ; top of stack1
     pushf
     push    cs
-    push    task3            ; location to return to
+    push    mandlebrot_task            ; location to return to
     pusha
     push    ds
     push    es
@@ -298,7 +298,7 @@ playMusic:
 ; Start Mandlebrot code
 
 PpR equ 160 ; 320 pixels per row/scanline
-RpS equ 100 ; 200 rows per screen/framebuffer
+RpS equ 200 ; 200 rows per screen/framebuffer
 ITERATIONS  equ 256
 mandlebrot_task:
 ; Set VGA graphics mode (320x200x8-bit)
@@ -545,8 +545,8 @@ y2  dd  0.0
 zero    dd  0.0
 width_adj   dd  80.0
 width       dd  160.0
-height_adj  dd  50.0
-height      dd  100.0
+height_adj  dd  100.0
+height      dd  200.0
 const_four  dd  4.0
 const_two   dd  2.0
 temp_col    dw  0
