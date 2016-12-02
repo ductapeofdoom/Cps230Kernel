@@ -4,6 +4,8 @@
 ;---------------------------------------------------
 bits 16
 
+;extern testFunction_
+
 ;For boostrapped programs, all addresses start at 0
 org 0x0
 
@@ -18,6 +20,8 @@ start:
     mov     ax, cs
     mov     ds, ax
 
+;    call    testFunction_
+    
     ; Set ES=0x0000 (segment of IVT)
     mov     ax, 0x0000
     mov     es, ax
