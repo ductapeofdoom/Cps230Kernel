@@ -97,7 +97,7 @@ bootstrap:
     mov     sp, stack2 + 255 ; top of stack2
     pushf
     push    cs
-    push    task2 + 0x20            ; location to return to
+    push    task2            ; location to return to
     pusha
     push    ds
     push    es
@@ -106,7 +106,7 @@ bootstrap:
     mov     sp, stack1 + 255 ; top of stack1
     pushf
     push    cs
-    push    task1 + 0x20            ; location to return to
+    push    task1            ; location to return to
     pusha
     push    ds
     push    es

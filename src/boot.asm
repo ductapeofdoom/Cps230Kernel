@@ -76,7 +76,7 @@ main:
     call    puts
     xor     ah, ah
     int     0x16
-    jmp     0x0800:0x0020
+    jmp     0x0800:0x0000
 
 ; print NUL-terminated string from DS:DX to screen using BIOS (INT 10h)
 ; takes NUL-terminated string pointed to by DS:DX

@@ -13,6 +13,8 @@ move test.obj build\test.obj > NUL
 rem now link it
 call tools\binnt\wlink format DOS name build\payload.com file build\payload.obj file build\test.obj
 
+call python dd.py
+
 rem put stuff together into floppy disk image
 call tools\mkfloppy.exe build/boot.img build/mbr.com build/payload.com
 
