@@ -49,7 +49,7 @@ main:
     mov     sp, ax
     ; TODO: use BIOS raw disk I/O to load sector 2 from disk number <boot_disk> into memory at 0800:0000h (retry on failure)
     mov     ah, 0x02 ;INT 13 number to read sectors
-    mov     al, 1; Read one sector
+    mov     al, 10; Read one sector
     mov     ch, 0; Track number is always 0
     mov     cl, 2; Read sector 2
     add     cl, [counter]
@@ -76,7 +76,7 @@ main:
     call    puts
     xor     ah, ah
     int     0x16
-    jmp     0x0800:0x0000
+    jmp     0x0800:0x0020
 
 ; print NUL-terminated string from DS:DX to screen using BIOS (INT 10h)
 ; takes NUL-terminated string pointed to by DS:DX

@@ -4,23 +4,25 @@
 ;---------------------------------------------------
 bits 16
 
-;extern testFunction_
+extern testFunction_
 
 ;For boostrapped programs, all addresses start at 0
-org 0x0
+;org 0x0
 
 ; Where to find the INT 8 handler vector within the IVT [interrupt vector table]
 IVT8_OFFSET_SLOT    equ 4 * 8           ; Each IVT entry is 4 bytes; this is the 8th
 IVT8_SEGMENT_SLOT   equ IVT8_OFFSET_SLOT + 2    ; Segment after Offset
 
+global start_
+
 section .text
-start:
+start_:
 
     ;Make code and data segments the same to simplify addressing
     mov     ax, cs
     mov     ds, ax
 
-;    call    testFunction_
+    call    testFunction_
     
     ; Set ES=0x0000 (segment of IVT)
     mov     ax, 0x0000
@@ -95,7 +97,7 @@ bootstrap:
     mov     sp, stack2 + 255 ; top of stack2
     pushf
     push    cs
-    push    task2            ; location to return to
+    push    task2 + 0x20            ; location to return to
     pusha
     push    ds
     push    es
@@ -104,7 +106,7 @@ bootstrap:
     mov     sp, stack1 + 255 ; top of stack1
     pushf
     push    cs
-    push    task1            ; location to return to
+    push    task1 + 0x20            ; location to return to
     pusha
     push    ds
     push    es
