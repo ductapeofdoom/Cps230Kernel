@@ -67,7 +67,7 @@ main:
     jc      main
     ; Finally, jump to address 0800h:0000h (sets CS == 0x0800 and IP == 0x0000)
 .interrupt:
-    cmp     word[counter], 2
+    cmp     word[counter], 6
     jl      main
     ; TODO: Print the boot message/banner
     mov     dx, boot_msg
