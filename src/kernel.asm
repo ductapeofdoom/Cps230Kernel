@@ -240,8 +240,8 @@ playMusic:
     ret
 
 .space:
-    mov	al, [portval]
-	out	SPEAKER_PORT, al
+    mov     al, [portval]
+    out     SPEAKER_PORT, al
     
     ret
     
@@ -270,9 +270,9 @@ playMusic:
     ; copied/edited from example code
     
     ; Capture initial speaker state
-	in	al, SPEAKER_PORT
-	and	al, 0xfc
-	mov	[portval], al
+    in      al, SPEAKER_PORT
+    and     al, 0xfc
+    mov     [portval], al
 
     ; Program PIT channel 2 to count at (0x1234DD / freq) [to generate that frequency]
     ; NASM has already done the math below, since DOS-BOX doesn't support the divide instructions
