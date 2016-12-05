@@ -5,7 +5,8 @@ tools\nasm\nasm -fbin -o build\mbr.com src\boot.asm
 tools\nasm\nasm -fobj -o build\payload.obj src\kernel.asm
 
 rem compile the C file
-call tools\binnt\wcc -0 -od -s -zls src\test.c > NUL
+call tools\binnt\wcc -bt=DOS -0 -od -s -zls src\test.c
+rem > NUL
 
 rem move the output of the C compilation to the build folder
 move test.obj build\test.obj > NUL

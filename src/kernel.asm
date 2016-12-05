@@ -5,6 +5,9 @@
 bits 16
 
 extern testFunction_
+extern moveBlock0_
+extern moveBlock1_
+extern moveBlock2_
 
 ;For boostrapped programs, all addresses start at 0
 ;org 0x0
@@ -23,7 +26,7 @@ start_:
     mov     ax, cs
     mov     ds, ax
 
-    call    testFunction_
+    call    testFunction_ ; I'm leaving this in here, because everything breaks if I remove it. It doesn't do anything, but . . .
     
     ; Set ES=0x0000 (segment of IVT)
     mov     ax, 0x0000
@@ -46,36 +49,34 @@ done:
 ;numProg     dw  2 ; number of tasks we want to run
 
 task1:
-    ; mov     ah, 0x09            ; DOS API Function number (write string)
-    mov     dx, msg1            ; Parameter (pointer to "$"-terminated ASCII string)
-    ; int     0x21                ; Call DOS (via a "software interrupt")
-    ;Use BIOS I/O instead of DOS I/O
-    ; call    puts
-    jmp     task1
-    ; call    yield
-    ; jmp     task1
-
-task2:
-    ; mov	    ah, 0x09            ; DOS API Function number (write string)
-    mov	    dx, msg2            ; Parameter (pointer to "$"-terminated ASCII string)
-    ; int	    0x21                ; Call DOS (via a "software interrupt")
-    ;Use BIOS I/O instead of DOS I/O
-    ; call    puts
-    jmp     task2
-    ;stop after 10 times
-    ; dec     WORD [timesToRun] 
-    ; cmp     WORD [timesToRun], 0
-    ; je      done
+    call    moveBlock1_
     
-    ; call    yield
-    ; jmp     task2
+    mov     cx, 50000
+    
+.loop:
+    dec     cx
+    jnz     .loop
+    
+    jmp     task1
+    
+; block moving back and forth 
+task2:
+    call    moveBlock2_
+    
+    mov     cx, 50000
+    
+.loop:
+    dec     cx
+    jnz     .loop
+    
+    jmp     task2
 
 task3:
     ; mov       ah, 0x09            ; DOS API Function number (write string)
-    mov     dx, msg3            ; Parameter (pointer to "$"-terminated ASCII string)
+    ;mov     dx, msg3            ; Parameter (pointer to "$"-terminated ASCII string)
     ; int       0x21                ; Call DOS (via a "software interrupt")
     ;Use BIOS I/O instead of DOS I/O
-    call    puts
+    ;call    puts
     jmp     task3
 
 yield:
