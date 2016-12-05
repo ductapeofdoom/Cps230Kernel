@@ -27,20 +27,20 @@ short setPixel(short x, short y, short value) {
 }
 
 void moveBlock(short curPos, short yPos) {
-	short x = curPos + 160;
-	short y = yPos;
-	for (; y < yPos + 10; y ++) {
-		setPixel(x, y, 0); // black in Stephen's pallette
-	}
-	
-	x = curPos + 11;
-	x = (x % 160);
-	x += 160;
-	
-	y = yPos;
-	for (; y < yPos + 10; y ++) {
-		setPixel(x, y, 193); // white in Stephen's pallette
-	}
+    short x = curPos + 160;
+    short y = yPos;
+    for (; y < yPos + 10; y ++) {
+        setPixel(x, y, 0); // black in Stephen's pallette
+    }
+    
+    x = curPos + 11;
+    x = (x % 160);
+    x += 160;
+    
+    y = yPos;
+    for (; y < yPos + 10; y ++) {
+        setPixel(x, y, 193); // white in Stephen's pallette
+    }
 }
 
 short currPos0 = 0;
@@ -63,12 +63,4 @@ void moveBlock2() {
     moveBlock(currPos2, 150);
     currPos2 ++;
     currPos2 = currPos2 % 160;
-}
-
-extern char[] pallette;
-
-int pallettePos = 0;
-
-void changePallete() {
-	
 }

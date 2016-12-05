@@ -8,7 +8,6 @@ extern functionThatKeepsStuffFromBreaking_
 extern moveBlock0_
 extern moveBlock1_
 extern moveBlock2_
-extern changePallette_
 
 ;For boostrapped programs, all addresses start at 0
 ;org 0x0
@@ -75,8 +74,14 @@ task2:
     jmp     task2
 
 task3:
-	call    changePallette_
+	; TODO
 	
+    mov     cx, 50000
+    
+.loop:
+    dec     cx
+    jnz     .loop
+    
     jmp     task3
 
 yield:
@@ -143,7 +148,7 @@ bootstrap:
     mov     [stacks + 2*0], sp
 
     ;Task to change color pallete
-    mov     sp, stack3 + 255 ; top of stack1
+    mov     sp, stack4 + 255 ; top of stack1
     pushf
     push    cs
     push    task3            ; location to return to
@@ -832,6 +837,8 @@ palette db  0, 0, 0
     db  1, 1, 1
 ;End Mandlebrot Code
 ;------------------------------------------------------------------------------------------
+_pallette equ palette
+
 
 section .data
 ; seed for random number generation
