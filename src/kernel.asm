@@ -26,7 +26,7 @@ start_:
     ;Make code and data segments the same to simplify addressing
     mov     ax, cs
     mov     ds, ax
-	
+    
     ; Set ES=0x0000 (segment of IVT)
     mov     ax, 0x0000
     mov     es, ax
@@ -74,7 +74,7 @@ task3:
     ;External C Function
     ;See test.c
     call pal_counter_
-	
+    
     mov     cx, 50000
     
 .loop:
@@ -208,6 +208,7 @@ bootstrap:
 ; ------------------------------------------------------------------------------------------------
 ; now all the really gross code for the music
 
+; random numbers copied from the example code.
 SPEAKER_PORT    equ 0x61
 PIT_CTL         equ 0x43
 PIT_PROG        equ 0xb6      ; 0b10110110: 10 (chan 2) 11 (read LSB/MSB) 011 (mode 3) 0 (binary)
@@ -215,21 +216,27 @@ PIT_CHAN2       equ 0x42
 PIT_FREQ        equ 0x1234DD
 
 playMusic:
+    ; musicPos contains two bytes. 
+    ; The first, which will become al, tells us the note we're on. e.g. the 43rd note
+    ; The second, which will become ah, tells us the position within the note. e.g. 31 clock cycles left
+    ; A clock cycle is 1/18.2 s
     mov     ax, [musicPos]
     dec     ah ; the position within the note
     
     jz      .nextNote ; if we're at the last position within a note
     
-    ; if not
+    ; if not, store back to memory, and return
     mov     [musicPos], ax
     
     ; we want to put a space at the end of a note just before we switch to the next note
+    ; If we're on the very last cycle of a note, blank out the sound
     cmp     ah, 1
     je      .space
     
     ret
 
 .space:
+    ; this magic incantation tells the speaker to be quiet.
     mov     al, [portval]
     out     SPEAKER_PORT, al
     
@@ -238,17 +245,21 @@ playMusic:
 .nextNote:
     inc     al ; go to the next note
     
-    cmp     al, NOTE_NUM
+    cmp     al, NOTE_NUM ; see if we've reached the end of the music
     jne     .after
-    mov     al, 0
+    mov     al, 0 ; if so, go back to the beginning
     
 .after:
+    ; figure out where the next note is in memory
     mov     bl, al
     mov     bh, 0
     shl     bx, 2
     
+    ; pull in the number of cycles that we specified for the next note
     mov     ah, [musicData + bx]
-    shl     ah, 2 ; multiply by 4 so the music isn't too fast to hear
+    ; multiply by 4 to slow down the tempo
+    ; If you remove this, it's really fun to listen to . . .
+    shl     ah, 2
     
     ; I think we're all done with messing around with ax, so we can go ahead and store it back in it's place
     mov     [musicPos], ax
