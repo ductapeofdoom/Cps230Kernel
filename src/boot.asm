@@ -49,7 +49,7 @@ main:
     mov     sp, ax
     ; TODO: use BIOS raw disk I/O to load sector 2 from disk number <boot_disk> into memory at 0800:0000h (retry on failure)
     mov     ah, 0x02 ;INT 13 number to read sectors
-    mov     al, 63; Read one sector
+    mov     al, 1; Read one sector
     mov     ch, 0; Track number is always 0
     mov     cl, 2; Read sector 2
     add     cl, [counter]
@@ -67,7 +67,7 @@ main:
     jc      main
     ; Finally, jump to address 0800h:0000h (sets CS == 0x0800 and IP == 0x0000)
 .interrupt:
-    cmp     word[counter], 6
+    cmp     word[counter], 63
     jl      main
     ; TODO: Print the boot message/banner
     mov     dx, boot_msg

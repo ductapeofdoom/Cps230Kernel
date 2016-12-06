@@ -43,9 +43,12 @@ void moveBlock(short curPos, short yPos) {
     }
 }
 
-short currPos0 = 0;
-short currPos1 = 60;
-short currPos2 = 120;
+extern short currPos0;
+extern short currPos1;
+extern short currPos2;
+// short currPos0 = 0;
+// short currPos1 = 60;
+// short currPos2 = 120;
 
 void moveBlock0() {
     moveBlock(currPos0, 50);
