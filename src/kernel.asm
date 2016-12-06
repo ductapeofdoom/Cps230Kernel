@@ -8,6 +8,7 @@ extern functionThatKeepsStuffFromBreaking_
 extern moveBlock0_
 extern moveBlock1_
 extern moveBlock2_
+extern pal_counter_
 
 ;For boostrapped programs, all addresses start at 0
 ;org 0x0
@@ -26,32 +27,22 @@ start_:
     mov     ax, cs
     mov     ds, ax
 	
-	; I'm leaving this in here, because everything breaks if I remove it. It doesn't do anything, but . . .
-	; apparently it's return value might be crucial . . .
-    ; call    functionThatKeepsStuffFromBreaking_
-	
     ; Set ES=0x0000 (segment of IVT)
     mov     ax, 0x0000
     mov     es, ax
     
+    ; Set VGA graphics mode (320x200x8-bit)
+    mov ah, 0
+    mov al, 0x13
+    int 0x10
 
     ;do stuff
     jmp     bootstrap
-; done:
-;     ; ; Terminate program
-;     ; mov     ah, 0x4C  ; DOS API Function number (terminate with status code)
-;     ; mov     al, 0     ; Parameter (status code 0 == success)
-;     ; int     0x21      ; Call DOS
-;     ;Loop infinitley
-;     jmp $
 
-;some ideas for later
-;stacks      times 32 dw  0 ; 32 stacks
-;currProg    dw  0 ; id of currently executing task
-;numProg     dw  2 ; number of tasks we want to run
-
+;Task to move a block across the screen
 task1: 
-
+    ;External C Function
+    ;See test.c
     call    moveBlock1_
     
     mov     cx, 50000
@@ -63,8 +54,10 @@ task1:
 
     jmp     task1
     
-; block moving back and forth 
+;Task to move another block across the screen 
 task2:
+    ;External C Function
+    ;See test.c
     call    moveBlock2_
     
     mov     cx, 50000
@@ -75,9 +68,12 @@ task2:
     
     jmp     task2
 
+;Task to keep a palette offset counting
+;Used to shift the color of the mandlebrot design only
 task3:
-	; TODO
-    mov ax, 0
+    ;External C Function
+    ;See test.c
+    call pal_counter_
 	
     mov     cx, 50000
     
@@ -87,6 +83,9 @@ task3:
     
     jmp     task3
 
+;IVT 8 Handler Function
+;Used for preemptive multitasking
+;Also used to play the background music
 yield:
     ;Flags, CS, and IP should all have been pushed by the interrupt
     ;Push GPRs 
@@ -95,27 +94,32 @@ yield:
     push    ds
     push    es
     
+    ;Assembly function to do music things
     call    playMusic
     
-    ;Switch stacks
-    ;xchg    [saved_sp], sp
-    ;Save current stack pointer
+    ;Get current stack index and adjust for word size
     mov    ax, [stack_idx]
     mov    cx, 2
     imul   cx
     mov    bx, ax
+    ;Save current stack pointer
     mov    [stacks + bx], sp 
 
+    ;Check to see if the stack index needs to wrap to the first task
     cmp    word[stack_idx], 3
     je     .wrap
+    ;If not just increment the index
     inc word[stack_idx]
     jmp .end
+;if so reset index back to 0
 .wrap:
     mov word[stack_idx], 0
 .end:
+    ;Get new stack index and adjust for word size
     mov ax, [stack_idx]
     imul cx
     mov bx, ax
+    ;Move new stack pointer into sp
     mov sp, [stacks + bx]
     pop     es
     pop     ds
@@ -123,6 +127,8 @@ yield:
     ;Chain to next interrupt handler
     jmp far [cs:ivt8_offset]    ; Use CS as the segment here, since who knows what DS is now
 
+;Kickstart function to start the first task3
+;Clears the intial stack and in the process sets the interrupt flag
 start_first_task:
     pop     es
     pop     ds
@@ -130,17 +136,27 @@ start_first_task:
     iret
 
 bootstrap:
+    ;Pay no attention to the order of this code
+
+    ;Set up stacks for all 4 tasks
+    ;Same steps are taken for all 4
+
+
     ;Moving block 1
+    ;Move the task's stack pointer into sp
     mov     sp, stack2 + 255 ; top of stack2
+    ;Set up initial stack by pushing flags, cs, code address of the task, ds, and cs
     pushf
     push    cs
     push    task2            ; location to return to
     pusha
     push    ds
     push    es
+    ;Save the task's stack pointer into the stack pointer array
     mov     [stacks + 2*1], sp
     
     ;Moving block 2
+    ;See the above setup for more comments
     mov     sp, stack1 + 255 ; top of stack1
     pushf
     push    cs
@@ -151,7 +167,8 @@ bootstrap:
     mov     [stacks + 2*0], sp
 
     ;Task to change color pallete
-    mov     sp, stack4 + 255 ; top of stack1
+    ;See the first setup for more comments
+    mov     sp, stack4 + 255 ; top of stack4
     pushf
     push    cs
     push    task3            ; location to return to
@@ -162,6 +179,8 @@ bootstrap:
 
 
     ;Mandlebrot setup
+    ;Same as all the above with one exception
+    ;The stack pointer is not stored or changed after the setup is complete
     mov     sp, stack3 + 255 ; top of stack1
     pushf
     push    cs
@@ -173,68 +192,18 @@ bootstrap:
 
 
 
-    ; TODO Install interrupt hook
-    ; 0. disable interrupts (so we can't be...INTERRUPTED...)
+    ;Install IVT 8 handler for task switching
     cli
-    ; 1. save current INT 8 handler address (segment:offset) into ivt8_offset and ivt8_segment
     mov     ax, [es:IVT8_SEGMENT_SLOT]
     mov     [ivt8_segment], ax
     mov     ax, [es:IVT8_OFFSET_SLOT]
     mov     [ivt8_offset], ax
-    ; 2. set new INT 8 handler address (OUR code's segment:offset)
     mov     [es:IVT8_SEGMENT_SLOT], cs
     mov     word [es:IVT8_OFFSET_SLOT], yield
 
+    ;Since the stack pointer is still on the mandlebrot_task's stack that will be the first task exectuted
+    ;Kickstarts the task outside of the interrupt handler
     jmp     start_first_task
-
-; setupRand:
-;     ; BIOS call to get current system time
-;     mov     ah, 0x01
-;     int     0x1A
-;     mov     [seed], dx ; return value
-;     ret
-
-; getRand:
-;     ; C equivalent:
-;         ; x = current_time()
-;         ; seed = seed * x + 1337
-;     ; return value goes in ax
-;     ; trashes ax and dx at least
-    
-;     ; BIOS call to get system time
-;     mov     ah, 0x01
-;     int     0x1A
-;     ; puts result in dx
-    
-;     mov     ax, [seed]
-;     imul    ax, dx ; result from the call to get time
-;     ; imul puts result in ax:dx
-    
-;     mov     ax, dx
-;     add     ax, 1337 ; response goes in ax
-;     ret
-
-; puts:
-;     push    ax
-;     push    cx
-;     push    si
-    
-;     mov     ah, 0x0e
-;     mov     cx, 1       ; no repetition of chars
-    
-;     mov     si, dx
-; .loop:
-;     mov     al, [si]
-;     inc     si
-;     cmp     al, 0
-;     jz      .end
-;     int     0x10
-;     jmp     .loop
-; .end:
-;     pop     si
-;     pop     cx
-;     pop     ax
-;     ret
 
 ; ------------------------------------------------------------------------------------------------
 ; now all the really gross code for the music
@@ -317,22 +286,21 @@ playMusic:
 
 ; ------------------------------------------------------------------------------------------------
 ; Start Mandlebrot code
+;Reference: http://jonisalonen.com/2013/lets-draw-the-mandelbrot-set/
 
-PpR equ 160 ; 320 pixels per row/scanline
+
+;Using half of the columns to only draw to half the screen
+PpR equ 160 ; 160 pixels per row/scanline
 RpS equ 200 ; 200 rows per screen/framebuffer
 ITERATIONS  equ 256
 mandlebrot_task:
-; Set VGA graphics mode (320x200x8-bit)
-    mov ah, 0
-    mov al, 0x13
-    int 0x10
 
     ; Set up ES to be our framebuffer segment
+    ;Needs to be done since es can be a lot of things in this program
     mov ax, 0xA000
     mov es, ax
-    ; mov ax, 0xb800
-    ; mov es, ax
 
+;Taken from example file mouspal in the class directory
 .palcycle:
     ; Select starting color (DI) for VGA palette transformation
     ; (Color transforms "wrap" around, so if we start at color
@@ -356,11 +324,7 @@ mandlebrot_task:
     out dx, al      ; Blue
     loop    .palloop
     
-    ; Clear screen to black (copy 80*25*2 byte of ZERO to the framebuffer)
-    ; mov al, 0
-    ; mov cx, CpR*RpS*BpC
-    ; mov di, 0
-    ; rep stosb
+
     ; Clear screen to black (copy 320*200 byte of ZERO to the framebuffer)
     mov al, 0
     mov cx, PpR*RpS
@@ -368,7 +332,9 @@ mandlebrot_task:
     rep stosb
     
 
+;Begin Mandlebrot logic
     mov cx, 0
+;Row Loop
 .compare_row:
     cmp cx, RpS
     jge .end_comp_row
@@ -376,7 +342,7 @@ mandlebrot_task:
     push cx
     mov cx, 0
 
-
+;Column Loop
 .compare_col:
     cmp cx, PpR
     jge .end_comp_col
@@ -385,6 +351,16 @@ mandlebrot_task:
     pop bx
     push bx
 
+    ;So here we doa lot of flops to do a little bit of math
+    ;The formula is essentially this,
+    ;while(x^2 + y^2 < 4 and iterations < MAX_ITER):
+    ;We actually do complex math with doing complex math by treating a complex number as an (x,y) pair
+    ;Heres what we do
+    ;x_new = x*x - y*y + c_re;
+    ;y = 2*x*y + c_im;
+    ;x = x_new;
+    ;increment iterations
+    ;loop
     mov word[iteration], 0
     fld dword[zero]
     fst dword[x]
@@ -418,23 +394,31 @@ mandlebrot_task:
     faddp
     fld dword[const_four]
 
-
+    ;Because 8086 floating point operations dont' support direct x87 flag compares we do a little bit of magic
+    ;Fcmop will set the flags on the x87
     fcomp
+    ;We grab the x87 status word
     fnstsw word [status_word]
-    ; fstp dword[junk]
     mov ax, [status_word]
+    ;We need to get the values of three spefici bits of the status word namely the 9th, 11th, and 15th bits
+    ;Note 17664 == 100010100000000
     mov di, 17664
     and ax, di
+    ;If we get 0 back we are still less than 4
     cmp ax, 0
 
     je .loopy
+    ;Here we check if we are equeal to 4
     mov ax, [status_word]
     and ax, 16384
     cmp ax, 16384
     jne .end_crazy_pls
 .loopy:
+    ;Check our iterations to see if we are still valid
     cmp word [iteration], ITERATIONS
     jge .end_crazy_pls
+
+    ;Calculate new x and y values
     fld dword[x2]
     fld dword[y2]
     fsub
@@ -457,54 +441,23 @@ mandlebrot_task:
     jmp .float_comp
 
 .end_crazy_pls:
+    ;Check iterations to see if we are still bounded
     cmp word[iteration], ITERATIONS
     jge .end_of_all
+    ;If bounded, get the current position on the screen 
     ;320*row + col
-
-;     mov di, 0
-;     mov [temp], cx
-; .compare_test:
-;     cmp di, 2
-;     jge .end_test
-
-;     mov ax, [temp]
-;     mov si, 10
-;     xor dx, dx
-;     div si
-;     mov [temp], ax
-;     add dx, 48
-;     mov ah, 2
-;     int 0x21
-
-;     inc di
-;     jmp .compare_test
-
-; .end_test:
-;     mov dx, 13
-;     mov ah, 2
-;     int 0x21
-
-;     mov dx, 10
-;     mov ah, 2
-;     int 0x21
-
-
     mov ax, 320
     imul bx
     push ax
     mov ax, cx
-    ; mov si, 2
-    ; imul si
     pop dx
     add ax, dx
 
-    ; mov di, ax
-    ; mov ah, 0xFF
-    ; mov al, 0
-    ; stosw
     push bx
     mov bx, ax
     mov ax, [iteration]
+    add ax, [_cur_pal_offset]
+    ;Set color to number of iterations + palette_offset
     mov byte[es:bx], al
     pop bx
     jmp .end_of_all
@@ -519,39 +472,7 @@ mandlebrot_task:
     jmp .compare_row
 .end_comp_row:
 
-    ; ; "BJU!" in bright blue on white, center of screen, in text mode
-    ; mov di, MESSAGE_START
-    ; mov ah, 0x1F    ; background = 1 (blue), foreground = 15 (bright white)
-    ; mov al, 'B'
-    ; stosw
-    ; mov al, 'J'
-    ; stosw
-    ; mov al, 'U'
-    ; stosw
-    ; mov al, '!'
-    ;stosw
-
-    ; Read a key, no echo-to-screen (use BIOS routines instead of DOS)
-    ; mov ah, 0x10
-    ; int 0x16
-
     jmp mandlebrot_task    
-
-    ; ; Return to text mode
-    ; mov ah, 0
-    ; mov al, 3
-    ; int 0x10
-    
-    ; ; quit-to-DOS
-    ; mov ah, 0x4c
-    ; int 0x21
-
-
-;Mandlebrot fun
-;X-scale (-2.5, 1)
-;X formula: (1+2.5)(x-0)/(4000 - 0) + (-2.5)
-;WHY FLOATING POINT WHY
-;Y-scale (-1, 1)
 
 
 section .data
@@ -576,6 +497,7 @@ junk    dq  0.0
 status_word dw  0
 temp    dw 0
 
+;Stolen from example file mouspal.asm
 ; Smooth-blending 256 color palette
 ; generated by a Python script
 ; (RGB values in the range 0-63)
@@ -860,6 +782,7 @@ msg1        db "I am task A!", 13, 10, 0
 msg2        db "I am task B!", 13, 10, 0
 msg3        db "I am task C!", 13, 10, 0
 
+;Task stacks
 stack1      times 256 db 0
 stack2      times 256 db 0
 stack3      times 256 db 0
@@ -881,7 +804,10 @@ musicData dw 4, (PIT_FREQ / 392), 2, (PIT_FREQ / 349), 2, (PIT_FREQ / 349), 4, (
              2, (PIT_FREQ / 415), 1, (PIT_FREQ / 392), 1, (PIT_FREQ / 415), 1, (PIT_FREQ / 349), 2, (PIT_FREQ / 415), 1, (PIT_FREQ / 466), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 554), 1, (PIT_FREQ / 587), 2, (PIT_FREQ / 622), 2, (PIT_FREQ / 622), 2, (PIT_FREQ / 622), 1, (PIT_FREQ / 554), 1, (PIT_FREQ / 523), 2, (PIT_FREQ / 523), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 6, (PIT_FREQ / 523), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 2, (PIT_FREQ / 523), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 2, (PIT_FREQ / 622), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 622), 4, (PIT_FREQ / 554), 3, (PIT_FREQ / 466), 1, (PIT_FREQ / 466), 2, (PIT_FREQ / 466), 1, (PIT_FREQ / 440), 1, (PIT_FREQ / 466), 2, (PIT_FREQ / 466), 1, (PIT_FREQ / 440), 1, (PIT_FREQ / 466), 6, (PIT_FREQ / 554), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 466), 1, (PIT_FREQ / 523), 2, (PIT_FREQ / 622), 1, (PIT_FREQ / 622), 2, (PIT_FREQ / 699), 2, (PIT_FREQ / 699), 6, (PIT_FREQ / 466), 2, (PIT_FREQ / 622), 2, (PIT_FREQ / 622), 1, (PIT_FREQ / 554), 1, (PIT_FREQ / 523), 2, (PIT_FREQ / 523), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 6, (PIT_FREQ / 523), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 2, (PIT_FREQ / 523), 1, (PIT_FREQ / 494), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 554), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 466), 1, (PIT_FREQ / 392), 4, (PIT_FREQ / 466), 3, (PIT_FREQ / 415), 1, (PIT_FREQ / 415), 2, (PIT_FREQ / 415), 1, (PIT_FREQ / 392), 1, (PIT_FREQ / 415), 2, (PIT_FREQ / 494), 1, (PIT_FREQ / 466), 1, (PIT_FREQ / 415), 5, (PIT_FREQ / 831), 1, (PIT_FREQ / 415), 1, (PIT_FREQ / 466), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 622), 1, (PIT_FREQ / 415), 1, (PIT_FREQ / 466), 1, (PIT_FREQ / 523), 1, (PIT_FREQ / 622), 1, (PIT_FREQ / 311), 1, (PIT_FREQ / 349), 1, (PIT_FREQ / 523), 4, (PIT_FREQ / 466), 2, (PIT_FREQ / 415), 1, (PIT_FREQ / 415), 16, 1
              ; other music . . .
 portval   dw 0
-pal_offset dw 0
+
+;External Variables used in C functions
+global _cur_pal_offset
+_cur_pal_offset dw 0
 global _currPos0
 _currPos0 dw 0
 global _currPos1

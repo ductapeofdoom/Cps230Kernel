@@ -2,6 +2,13 @@ short functionThatKeepsStuffFromBreaking(short x) {
     return 5 + 3;
 }
 
+extern short cur_pal_offset;
+
+void pal_counter(){
+    cur_pal_offset ++;
+    cur_pal_offset = cur_pal_offset % 256;
+}
+
 short setPixel(short x, short y, short value) {
     short pos = (320 * y + x);
     
