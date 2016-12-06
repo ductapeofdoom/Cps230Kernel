@@ -338,7 +338,7 @@ mandlebrot_task:
 
     ; Clear screen to black (copy 320*200 byte of ZERO to the framebuffer)
     mov al, 0
-    mov cx, PpR*RpS
+    mov cx, 320*200
     mov di, 0
     rep stosb
     
